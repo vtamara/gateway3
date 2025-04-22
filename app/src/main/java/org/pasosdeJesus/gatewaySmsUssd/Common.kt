@@ -13,7 +13,7 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 
-public fun addLog(logs: String, newMsg: String): String {
+fun addLog(logs: String, newMsg: String): String {
     val logsList = logs.split("\n").toTypedArray()
     val sdf = SimpleDateFormat("dd/M/yyyy hh:mm:ss")
     val currentDate = sdf.format(Date())
@@ -35,7 +35,7 @@ suspend fun fetchApiData(url: String): String {
 
         val response: Response = client.newCall(request).execute()
         if (response.isSuccessful) {
-            var ret = response.body?.string() ?: "No data"
+            val ret = response.body?.string() ?: "No data"
             response.close()
             ret
         } else {

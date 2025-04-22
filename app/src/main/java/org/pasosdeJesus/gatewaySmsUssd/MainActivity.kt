@@ -13,7 +13,6 @@ import android.provider.Telephony
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -66,17 +66,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    fun addLog(logs: String, newMsg: String): String {
-        val logsList = logs.split("\n").toTypedArray()
-        val sdf = SimpleDateFormat("dd/M/yyyy hh:mm:ss")
-        val currentDate = sdf.format(Date())
-        val res = logsList.plus("[$currentDate] $newMsg")
-        if (res.size > 5) {
-            res[0] = ""
-        }
-        val res2 = res.filter { it != "" }.toTypedArray()
-        return res2.joinToString(separator = "\n")
-    }
 
     //@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     @Composable
@@ -91,6 +80,83 @@ class MainActivity : ComponentActivity() {
                 text = name,
                 fontSize = 32.sp
             )
+            Row(horizontalArrangement = Arrangement.Center) {
+                Button(modifier= Modifier, onClick = {
+                    recentLogs = addLog(
+                        recentLogs,
+                        "Activating reading of SMS"
+                    )
+                    if (activity != null) {
+                        if (ActivityCompat.checkSelfPermission(
+                                activity,
+                                Manifest.permission.RECEIVE_SMS
+                            ) !=
+                            PackageManager.PERMISSION_GRANTED ||
+                            ActivityCompat.checkSelfPermission(
+                                activity,
+                                Manifest.permission.READ_SMS
+                            ) !=
+                            PackageManager.PERMISSION_GRANTED
+                        ) {
+                            if (ActivityCompat.shouldShowRequestPermissionRationale(
+                                    activity,
+                                    Manifest.permission.RECEIVE_SMS
+                                ) ||
+                                ActivityCompat.shouldShowRequestPermissionRationale(
+                                    activity,
+                                    Manifest.permission.READ_SMS
+                                )
+                            ) {
+                                recentLogs = addLog(
+                                    recentLogs,
+                                    "Reading and receiving SMSs is required for on-ramping"
+                                )
+                            } else {
+                                ActivityCompat.requestPermissions(
+                                    activity,
+                                    arrayOf(
+                                        Manifest.permission.RECEIVE_SMS,
+                                        Manifest.permission.READ_SMS
+                                    ),
+                                    RC_READ_SMS
+                                )
+                            }
+                        } else {
+                            val br = object : BroadcastReceiver() {
+                                override fun onReceive(p0: Context?, p1: Intent?) {
+                                    for (sms in Telephony.Sms.Intents.getMessagesFromIntent(
+                                        p1
+                                    )) {
+                                        val smsSender = sms.originatingAddress
+                                        val smsMessageBody = sms.displayMessageBody
+
+                                        recentLogs = postMsg(
+                                            activity = activity,
+                                            recentLogs = recentLogs,
+                                            sender = smsSender.toString(),
+                                            msg = smsMessageBody
+                                        )
+                                        //if (smsSender == "the_number_that_you_expect_the_SMS_to_come_FROM") {
+
+                                        //}
+                                    }
+                                }
+                            }
+
+
+                            registerReceiver(
+                                activity,
+                                br,
+                                IntentFilter("android.provider.Telephony.SMS_RECEIVED"),
+                                ContextCompat.RECEIVER_EXPORTED
+                            )
+
+                        }
+                    }
+                }) {
+                    Text("Activate receiving SMS")
+                }
+            }
             Column {
                 Text(
                     text = recentLogs,
@@ -147,79 +213,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            Button(onClick = {
-                recentLogs = addLog(
-                    recentLogs,
-                    "Activating reading of SMS"
-                )
-                if (activity != null) {
-                    if (ActivityCompat.checkSelfPermission(
-                            activity,
-                            Manifest.permission.RECEIVE_SMS
-                        ) !=
-                        PackageManager.PERMISSION_GRANTED ||
-                        ActivityCompat.checkSelfPermission(
-                            activity,
-                            Manifest.permission.READ_SMS
-                        ) !=
-                        PackageManager.PERMISSION_GRANTED
-                    ) {
-                        if (ActivityCompat.shouldShowRequestPermissionRationale(
-                                activity,
-                                Manifest.permission.RECEIVE_SMS
-                            ) ||
-                            ActivityCompat.shouldShowRequestPermissionRationale(
-                                activity,
-                                Manifest.permission.READ_SMS
-                            )
-                        ) {
-                            recentLogs = addLog(
-                                recentLogs,
-                                "Reading and receiving SMSs is required for on-ramping"
-                            )
-                        } else {
-                            ActivityCompat.requestPermissions(
-                                activity,
-                                arrayOf(
-                                    Manifest.permission.RECEIVE_SMS,
-                                    Manifest.permission.READ_SMS
-                                ),
-                                RC_READ_SMS
-                            )
-                        }
-                    } else {
-                        val br = object : BroadcastReceiver() {
-                            override fun onReceive(p0: Context?, p1: Intent?) {
-                                for (sms in Telephony.Sms.Intents.getMessagesFromIntent(
-                                    p1
-                                )) {
-                                    val smsSender = sms.originatingAddress
-                                    val smsMessageBody = sms.displayMessageBody
-                                    recentLogs = addLog(
-                                        recentLogs,
-                                        "SMS Received sender: '$smsSender', Message: '$smsMessageBody'"
-                                    )
-                                    //if (smsSender == "the_number_that_you_expect_the_SMS_to_come_FROM") {
 
-                                    //}
-                                }
-                            }
-                        }
-
-
-                        registerReceiver(
-                            activity,
-                            br,
-                            IntentFilter("android.provider.Telephony.SMS_RECEIVED"),
-                            ContextCompat.RECEIVER_EXPORTED
-                        )
-
-                    }
-                }
-            }) {
-                Text("Activate receiving SMS")
-            }
-            Row {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(verticalArrangement = Arrangement.Center) {
                     TextField(
                         value = smsNumber,
@@ -264,7 +259,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }) {
-                    Text("Send SMS")
+                    Text("Test Send SMS")
                 }
             }
             Button(onClick = {
@@ -312,45 +307,12 @@ class MainActivity : ComponentActivity() {
                 Text("Get from API")
             }
             Button(onClick = {
-                if (activity != null && ActivityCompat.checkSelfPermission(
-                        activity,
-                        Manifest.permission.INTERNET
-                    ) != PackageManager.PERMISSION_GRANTED
-                ) {
-                    if (ActivityCompat.shouldShowRequestPermissionRationale(
-                            activity,
-                            Manifest.permission.INTERNET
-                        )
-                    ) {
-                        recentLogs = addLog(
-                            recentLogs,
-                            "Internet to communicate with coordinatig backend"
-                        )
-                    } else {
-                        ActivityCompat.requestPermissions(
-                            activity,
-                            arrayOf(Manifest.permission.INTERNET),
-                            RC_INTERNET
-                        )
-                    }
-                } else {
-                    val scope = CoroutineScope(Dispatchers.IO)
-                    scope.launch {
-                        try {
-                            val res = post(url = "https://stable-sl.pdJ.app/api/webhooks", json = "{}")
-                            recentLogs = addLog(
-                                recentLogs,
-                                "Posted test $res"
-                            )
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                            recentLogs = addLog(
-                                recentLogs,
-                                "Couldn't post"
-                            )
-                        }
-                    }
-                }
+                recentLogs = postMsg(
+                    activity = activity,
+                    recentLogs = recentLogs,
+                    sender = "012345678",
+                    msg = "Testing"
+                )
             }) {
                 Text("Send POST to API")
             }
@@ -371,6 +333,66 @@ class MainActivity : ComponentActivity() {
 
         return Uri.parse(uriString)
     }
+
+    fun addLog(logs: String, newMsg: String): String {
+        val logsList = logs.split("\n").toTypedArray()
+        val sdf = SimpleDateFormat("dd/M/yyyy hh:mm:ss")
+        val currentDate = sdf.format(Date())
+        val res = logsList.plus("[$currentDate] $newMsg")
+        if (res.size > 5) {
+            res[0] = ""
+        }
+        val res2 = res.filter { it != "" }.toTypedArray()
+        return res2.joinToString(separator = "\n")
+    }
+
+    fun postMsg(activity: MainActivity?, recentLogs: String, sender: String, msg: String): String {
+        var res:String
+        var recentLogs2: String = recentLogs
+
+        if (activity != null && ActivityCompat.checkSelfPermission(
+                activity,
+                Manifest.permission.INTERNET
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            if (ActivityCompat.shouldShowRequestPermissionRationale(
+                    activity,
+                    Manifest.permission.INTERNET
+                )
+            ) {
+                recentLogs2 = addLog(
+                    recentLogs,
+                    "Internet to communicate with coordinating backend"
+                )
+            } else {
+                ActivityCompat.requestPermissions(
+                    activity,
+                    arrayOf(Manifest.permission.INTERNET),
+                    RC_INTERNET
+                )
+            }
+        } else {
+            val scope = CoroutineScope(Dispatchers.IO)
+            scope.launch {
+                try {
+                    res = post(url = "https://stable-sl.pdJ.app/api/sms_received",
+                        json = "{\"sender\": \"${sender}\", \"msg\": \"${msg}\"}")
+                    recentLogs2 = addLog(
+                        recentLogs,
+                        "Posted test $res"
+                    )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    recentLogs2 = addLog(
+                        recentLogs,
+                        "Couldn't post"
+                    )
+                }
+            }
+        }
+        return recentLogs2
+    }
+
 
 
     //@androidx.annotation.RequiresApi(android.os.Build.VERSION_CODES.VANILLA_ICE_CREAM)
